@@ -1,31 +1,31 @@
 # Master folder doc
-- [README.md](Readme)
+- [README.md](README)
 - [DEVELOPMENT.md](DEVELOPMENT)
 
 # Lib
-- [Lib/README.md](lib)
+- [Lib/README.md](Lib/README)
 
 
 # WASM
-- [wasm/README.md](wasm)
-- [wasm/lib/README.md](wasm)
-- [wasm/notebook/README.md](notebook wasm)
+- [wasm/README.md](wasm/README)
+- [wasm/lib/README.md](wasm/lib/README)
+- [wasm/notebook/README.md](wasm/notebook/README)
 
 
 # VM
-- [vm/Lib/README.md](lib)
+- [vm/Lib/README.md](vm/Lib/README)
 
 # Benches
-- [benches/README.md](benches)
+- [benches/README.md](benches/README)
 
 # Extra
-- [extra_tests/README.md](benches)
-- [Lib/test/ziptestdata/README.md](ziptestdata)
+- [extra_tests/README.md](extra_tests/README)
+- [Lib/test/ziptestdata/README.md](Lib/test/ziptestdata/README)
 
 
 
 # Dev
-- [DEVELOPMENT.md](lib)
+- [DEVELOPMENT.md](DEVELOPMENT)
 
 # conduct
-- [code-of-conduct.md](lib)
+- [code-of-conduct.md](code-of-conduct)
