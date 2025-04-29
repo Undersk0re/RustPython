@@ -1,0 +1,30 @@
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+OK (skipped=2)
+test_zoneinfo passed
+
+== Tests result: FAILURE ==
+
+292 tests OK.
+
+2 tests failed:
+    test_rlcompleter test_support
+
+14 tests skipped:
+    test_android test_audit test_compile test_ctypes test_devpoll
+    test_kqueue test_multiprocessing_main_handling test_smtpnet
+    test_socketserver test_sqlite3 test_urllib2net test_urllibnet
+    test_winapi test_zipfile64
+
+Total duration: 18 min 10 sec
+Tests result: FAILURE
+./pdc.sh: riga 49: pytest: comando non trovato
+
+
+*********************
+PDC failed
+     Fail cargo clippy --all -- -Dwarnings
+     Fail cargo test --all
+     Fail cargo run --release -- -m test -v
+     Fail pytest
