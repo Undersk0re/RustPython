@@ -2,22 +2,22 @@
 /*/target
 **/*.rs.bk
 **/*.bytecode
-__pycache__
+__pycache__/
 **/*.pytest_cache
 .*sw*
 .repl_history.txt
-.vscode
+.vscode/
 wasm-pack.log
 .idea/
-.envrc
+.envrc/
 .python-version
-
+Cargo.lock
 flame-graph.html
 flame.txt
 flamescope.json
 /wapm.lock
 /wapm_packages
-/.cargo/config
+.cargo/
 
 extra_tests/snippets/resources
 extra_tests/not_impl.py
