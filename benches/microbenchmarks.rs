@@ -29,25 +29,28 @@ const SKIP_MICROBENCHMARKS: [&str; 8] = [
     "exception_context.py",
 ];
 
+// Struct representing a single microbenchmark
 pub struct MicroBenchmark {
-    name: String,
-    setup: String,
-    code: String,
-    iterate: bool,
+    name: String,     // Name of the benchmark (usually the filename)
+    setup: String,    // Setup code to run before the main code (optional)
+    code: String,     // The main code to benchmark
+    iterate: bool,    // Whether to run the code multiple times with different iteration counts
 }
 
+// Run the benchmark using CPython (via PyO3)
 fn bench_cpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenchmark) {
     pyo3::Python::with_gil(|py| {
+        // Compile the setup and main code using Python's built-in compile function
         let setup_name = format!("{}_setup", bench.name);
         let setup_code = cpy_compile_code(py, &bench.setup, &setup_name).unwrap();
-
         let code = cpy_compile_code(py, &bench.code, &bench.name).unwrap();
 
-        // Grab the exec function in advance so we don't have lookups in the hot code
+        // Get the built-in exec function for running code objects
         let builtins =
             pyo3::types::PyModule::import(py, "builtins").expect("Failed to import builtins");
         let exec = builtins.getattr("exec").expect("no exec in builtins");
 
+        // Function to run the main code in a given Python scope (globals/locals)
         let bench_func = |(globals, locals): &mut (
             pyo3::Bound<pyo3::types::PyDict>,
             pyo3::Bound<pyo3::types::PyDict>,
@@ -59,13 +62,13 @@ fn bench_cpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenchma
             }
         };
 
+        // Function to set up the Python scope, optionally setting ITERATIONS
         let bench_setup = |iterations| {
             let globals = pyo3::types::PyDict::new(py);
             let locals = pyo3::types::PyDict::new(py);
             if let Some(idx) = iterations {
                 globals.set_item("ITERATIONS", idx).unwrap();
             }
-
             let res = exec.call((&setup_code, &globals, &locals), None);
             if let Err(e) = res {
                 e.print(py);
@@ -74,6 +77,7 @@ fn bench_cpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenchma
             (globals, locals)
         };
 
+        // If the benchmark is iterative, run it with different iteration counts
         if bench.iterate {
             for idx in (100..=1_000).step_by(200) {
                 group.throughput(Throughput::Elements(idx as u64));
@@ -86,6 +90,7 @@ fn bench_cpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenchma
                 });
             }
         } else {
+            // Otherwise, just run it once
             group.bench_function(BenchmarkId::new("cpython", &bench.name), move |b| {
                 b.iter_batched_ref(|| bench_setup(None), bench_func, BatchSize::LargeInput);
             });
@@ -93,6 +98,7 @@ fn bench_cpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenchma
     })
 }
 
+// Helper function to compile Python code using PyO3
 fn cpy_compile_code<'a>(
     py: pyo3::Python<'a>,
     code: &str,
@@ -104,18 +110,22 @@ fn cpy_compile_code<'a>(
     compile.call1((code, name, "exec"))?.extract()
 }
 
+// Run the benchmark using RustPython
 fn bench_rustpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenchmark) {
+    // Set up RustPython interpreter settings
     let mut settings = Settings::default();
     settings.path_list.push("Lib/".to_string());
     settings.write_bytecode = false;
     settings.user_site_directory = false;
 
+    // Initialize the interpreter with the standard library
     Interpreter::with_init(settings, |vm| {
         for (name, init) in rustpython_stdlib::get_module_inits() {
             vm.add_native_module(name, init);
         }
     })
     .enter(|vm| {
+        // Compile the setup and main code
         let setup_code = vm
             .compile(&bench.setup, Mode::Exec, bench.name.to_owned())
             .expect("Error compiling setup code");
@@ -123,11 +133,13 @@ fn bench_rustpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenc
             .compile(&bench.code, Mode::Exec, bench.name.to_owned())
             .expect("Error compiling bench code");
 
+        // Function to run the main code in a given scope
         let bench_func = |scope| {
             let res: PyResult = vm.run_code_obj(bench_code.clone(), scope);
             vm.unwrap_pyresult(res);
         };
 
+        // Function to set up the scope, optionally setting ITERATIONS
         let bench_setup = |iterations| {
             let scope = vm.new_scope_with_builtins();
             if let Some(idx) = iterations {
@@ -142,6 +154,7 @@ fn bench_rustpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenc
             scope
         };
 
+        // If the benchmark is iterative, run it with different iteration counts
         if bench.iterate {
             for idx in (100..=1_000).step_by(200) {
                 group.throughput(Throughput::Elements(idx as u64));
@@ -158,6 +171,7 @@ fn bench_rustpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenc
                 );
             }
         } else {
+            // Otherwise, just run it once
             group.bench_function(BenchmarkId::new("rustpython", &bench.name), move |b| {
                 b.iter_batched(|| bench_setup(None), bench_func, BatchSize::LargeInput);
             });
@@ -165,6 +179,7 @@ fn bench_rustpython_code(group: &mut BenchmarkGroup<WallTime>, bench: &MicroBenc
     })
 }
 
+// Run both CPython and RustPython benchmarks for a given microbenchmark
 pub fn run_micro_benchmark(c: &mut Criterion, benchmark: MicroBenchmark) {
     let mut group = c.benchmark_group("microbenchmarks");
 
@@ -174,7 +189,9 @@ pub fn run_micro_benchmark(c: &mut Criterion, benchmark: MicroBenchmark) {
     group.finish();
 }
 
+// Main function to discover and run all microbenchmarks
 pub fn criterion_benchmark(c: &mut Criterion) {
+    // Find all files in the microbenchmarks directory
     let benchmark_dir = Path::new("./benches/microbenchmarks/");
     let dirs: Vec<fs::DirEntry> = benchmark_dir
         .read_dir()
@@ -183,6 +200,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .unwrap();
     let paths: Vec<PathBuf> = dirs.iter().map(|p| p.path()).collect();
 
+    // Parse each file into a MicroBenchmark struct
     let benchmarks: Vec<MicroBenchmark> = paths
         .into_iter()
         .map(|p| {
@@ -190,6 +208,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let contents = fs::read_to_string(p).unwrap();
             let iterate = contents.contains("ITERATIONS");
 
+            // If the file contains "# ---", split into setup and main code
             let (setup, code) = if contents.contains("# ---") {
                 let split: Vec<&str> = contents.splitn(2, "# ---").collect();
                 (split[0].to_string(), split[1].to_string())
@@ -206,6 +225,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
         .collect();
 
+    // Run each benchmark, skipping those in the skip list
     for benchmark in benchmarks {
         if SKIP_MICROBENCHMARKS.contains(&benchmark.name.as_str()) {
             continue;
@@ -214,5 +234,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
 }
 
+// These macros register the benchmarks with Criterion
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
