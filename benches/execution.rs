@@ -55,7 +55,8 @@ fn bench_rustpython_code(b: &mut Bencher, name: &str, source: &str) {
 
 
 /// Main function that sets up and runs all benchmarks
-pub fn criterion_benchmark(c: &mut Criterion) {
+fn criterion_benchmark(c: &mut Criterion, mode:char) {
+    // mode c== cpython, mode r== rustpython
     // Path to the directory containing benchmark files
     let benchmark_dir = Path::new("./benches/benchmarks/");
     // Read all files in the directory into a HashMap (filename -> file contents)
@@ -82,24 +83,28 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // Set the throughput (for reporting) to the number of bytes in the file
         parse_group.throughput(Throughput::Bytes(contents.len() as u64));
         // Benchmark parsing with RustPython's parser
-        parse_group.bench_function(BenchmarkId::new("rustpython", name), |b| {
-            b.iter(|| ruff_python_parser::parse_module(contents).unwrap())
-        });
-        // Benchmark parsing with CPython's parser (via PyO3)
-        parse_group.bench_function(BenchmarkId::new("cpython", name), |b| {
-            use pyo3::types::PyAnyMethods;
-            pyo3::Python::with_gil(|py| {
-                let builtins =
-                    pyo3::types::PyModule::import(py, "builtins").expect("Failed to import builtins");
-                let compile = builtins.getattr("compile").expect("no compile in builtins");
-                b.iter(|| {
-                    let x = compile
-                        .call1((contents, name, "exec"))
-                        .expect("Failed to parse code");
-                    black_box(x);
+        if mode=='r' {
+            parse_group.bench_function(BenchmarkId::new("rustpython", name), |b| {
+                b.iter(|| ruff_python_parser::parse_module(contents).unwrap())
+            });
+        }
+        if mode=='c'{
+            // Benchmark parsing with CPython's parser (via PyO3)
+            parse_group.bench_function(BenchmarkId::new("cpython", name), |b| {
+                use pyo3::types::PyAnyMethods;
+                pyo3::Python::with_gil(|py| {
+                    let builtins =
+                        pyo3::types::PyModule::import(py, "builtins").expect("Failed to import builtins");
+                    let compile = builtins.getattr("compile").expect("no compile in builtins");
+                    b.iter(|| {
+                        let x = compile
+                            .call1((contents, name, "exec"))
+                            .expect("Failed to parse code");
+                        black_box(x);
+                    })
                 })
-            })
-        });
+            });
+        }
 
     }
     parse_group.finish();
@@ -121,13 +126,19 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             // Set throughput to the number of loops
             pystone_group.throughput(Throughput::Elements(idx as u64));
             // Benchmark with CPython
-            pystone_group.bench_function(BenchmarkId::new("cpython", idx), |b| {
-                bench_cpython_code(b, code_str)
-            });
-            // Benchmark with RustPython
-            pystone_group.bench_function(BenchmarkId::new("rustpython", idx), |b| {
-                bench_rustpython_code(b, "pystone", code_str)
-            });
+            if mode=='c'{
+                pystone_group.bench_function(BenchmarkId::new("cpython", idx), |b| {
+                    bench_cpython_code(b, code_str)
+                });
+
+            }
+            if mode=='r'{
+                // Benchmark with RustPython
+                pystone_group.bench_function(BenchmarkId::new("rustpython", idx), |b| {
+                    bench_rustpython_code(b, "pystone", code_str)
+                });
+
+            }
         }
         pystone_group.finish();
     }
@@ -139,18 +150,32 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let mut execution_group = c.benchmark_group("execution");
     for (name, contents) in &benches {
         // Register the CPython benchmark
-        execution_group.bench_function(BenchmarkId::new("cpython", name), |b| {
-            bench_cpython_code(b, contents)
-        });
+        if mode == 'c' {
+            execution_group.bench_function(BenchmarkId::new("cpython", name), |b| {
+                bench_cpython_code(b, contents)
+            });
+
+        }
         // Register the RustPython benchmark
-        execution_group.bench_function(BenchmarkId::new("rustpython", name), |b| {
-            bench_rustpython_code(b, name, contents)
-        });
+        if mode=='r'{
+            execution_group.bench_function(BenchmarkId::new("rustpython", name), |b| {
+                bench_rustpython_code(b, name, contents)
+            });
+        }
     }
     execution_group.finish();
 
 }
 
+
+pub fn criterion_benchmark_cpython(c: &mut Criterion,){
+    criterion_benchmark(c,'c');
+}
+
+pub fn criterion_benchmark_rustpython(c: &mut Criterion,){
+    criterion_benchmark(c,'r');
+}
+
 // Register the benchmarks with Criterion
-criterion_group!(benches, criterion_benchmark);
+criterion_group!(benches, criterion_benchmark_cpython,criterion_benchmark_rustpython);
 criterion_main!(benches);
