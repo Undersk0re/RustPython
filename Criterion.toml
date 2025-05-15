@@ -1,0 +1,22 @@
+[colors]
+# These are used in many charts to compare the current measurement against 
+# the previous one.
+current_sample = {r = 31, g = 120, b = 180}
+previous_sample = {r = 7, g = 26, b = 28}
+
+# These are used by the full PDF chart to highlight which samples were outliers.
+not_an_outlier = {r = 31, g = 120, b = 180}
+mild_outlier = {r = 5, g = 127, b = 0}
+severe_outlier = {r = 7, g = 26, b = 28}
+
+# These are used for the line chart to compare multiple different functions.
+comparison_colors = [
+    {r = 230, g = 25,  b = 75},   # red
+    {r = 60,  g = 180, b = 75},   # green
+    {r = 255, g = 225, b = 25},   # yellow
+    {r = 0,   g = 130, b = 200},  # blue
+    {r = 245, g = 130, b = 48},   # orange
+    {r = 145, g = 30,  b = 180},  # purple
+    {r = 70,  g = 240, b = 240},  # light cyan
+    {r = 240, g = 50,  b = 230},  # magenta
+]
